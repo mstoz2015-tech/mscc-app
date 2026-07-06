@@ -178,12 +178,13 @@ function openCampaignModal(camp) {
   document.getElementById("modalOverlay").classList.remove("hidden");
   document.getElementById("modalTitle").textContent = camp ? "Modifier" : "Nouvelle campagne";
   api("/api/senders").then(senders => {
+    if (!senders || !Array.isArray(senders)) senders = [];
     document.getElementById("modalFields").innerHTML =
       '<input id="modCampId" type="hidden" value="' + (camp ? camp.id : "") + '">' +
-      '<label>Nom</label><input id="modCampName" value="' + (camp ? camp.name : "") + '">' +
-      '<label>Expéditeur</label><select id="modCampSender">' + senders.map(s => '<option value="' + s.id + '"' + (camp && camp.sender_id === s.id ? ' selected' : '') + '>' + s.name + '</option>').join("") + '</select>' +
-      '<label>Objet</label><input id="modCampSubject" value="' + (camp ? camp.subject : "") + '">' +
-      '<label>Message</label><div class="editor-toolbar"><button onclick="execCmdModal(\'bold\')"><b>B</b></button><button onclick="execCmdModal(\'italic\')"><i>I</i></button></div><div id="modCampBody" class="editor-body" contenteditable="true" style="min-height:100px">' + (camp ? camp.body : "") + '</div>';
+      '<label>Nom de la campagne</label><input id="modCampName" value="' + (camp ? camp.name : "") + '" placeholder="Ex: Relance Janvier">' +
+      '<label>Expéditeur</label><select id="modCampSender">' + senders.map(s => '<option value="' + s.id + '"' + (camp && camp.sender_id === s.id ? ' selected' : '') + '>' + s.name + ' (' + s.usr + ')</option>').join("") + '</select>' +
+      '<label>Objet par défaut</label><input id="modCampSubject" value="' + (camp ? camp.subject : "") + '" placeholder="Bonjour {prenom}">' +
+      '<label>Message par défaut</label><div class="editor-toolbar"><button onclick="execCmdModal(\'bold\')"><b>B</b></button><button onclick="execCmdModal(\'italic\')"><i>I</i></button></div><div id="modCampBody" class="editor-body" contenteditable="true" style="min-height:100px">' + (camp ? camp.body : "") + '</div>';
     document.getElementById("btnModalSave").onclick = async () => {
       const c = {
         id: document.getElementById("modCampId").value || "camp_" + Date.now(),
