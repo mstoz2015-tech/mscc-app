@@ -121,7 +121,7 @@ app.post("/api/send-one", async (req, res) => {
   if (!sender) return res.status(400).json({ error: "Sender not found" });
 
   const rid = hashEmail(item.email_to);
-  const pixel = '<img src="https://vendirect.lu/api/track/open?id='+rid+'&campaign='+campaign_id+'" width="1" height="1" alt="" />';
+  const pixel = '<img src="https://send.mscc.lu/api/track-open?id='+rid+'&campaign='+campaign_id+'" width="1" height="1" alt="" />';
 
   try {
     const transporter = nodemailer.createTransport({
