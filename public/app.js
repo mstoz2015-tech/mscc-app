@@ -107,8 +107,8 @@ async function clearQueue() {
 }
 
 // Send loop
-async function startSend() {
-  const cid = document.getElementById("sendCampaign").value;
+async function startSend(cidOverride) {
+  const cid = cidOverride || document.getElementById("sendCampaign").value;
   if (!cid) return alert("Choisissez une campagne");
 
   // Check if there are pending items for this campaign
@@ -299,8 +299,7 @@ window.execCmd = execCmd; window.insertLink = insertLink; window.execCmdModal = 
 
 // Global helpers for inline buttons in Stats tab
 async function resumeSend(cid) {
-  document.getElementById("sendCampaign").value = cid;
-  await startSend();
+  await startSend(cid);
 }
 async function stopSend() {
   if (sendTimer) { clearInterval(sendTimer); sendTimer = null; }
