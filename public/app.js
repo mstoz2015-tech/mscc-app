@@ -110,12 +110,25 @@ async function clearQueue() {
 async function startSend() {
   const cid = document.getElementById("sendCampaign").value;
   if (!cid) return alert("Choisissez une campagne");
-  if (sendTimer) { clearInterval(sendTimer); sendTimer = null; document.getElementById("btnStart").textContent = "▶️ Démarrer l'envoi"; refreshAll(); return; }
+
+  // Check if there are pending items for this campaign
+  const q = await api("/api/queue");
+  const pending = (q.queue && q.queue[cid]) ? q.queue[cid].items : 0;
+
+  if (sendTimer) {
+    // Stop
+    clearInterval(sendTimer); sendTimer = null;
+    document.getElementById("btnStart").textContent = pending > 0 ? "▶️ Reprendre" : "▶️ Démarrer";
+    document.getElementById("btnStart").className = "btn-primary";
+    refreshAll(); return;
+  }
+
+  if (pending === 0) return alert("Aucun email en attente. Ajoutez d'abord des emails à la file.");
 
   const settings = await api("/api/settings");
   const delay = (settings.delay || 80) * 1000;
 
-  document.getElementById("btnStart").textContent = "⏹️ Arrêter l'envoi";
+  document.getElementById("btnStart").textContent = "⏹️ Arrêter";
   document.getElementById("btnStart").className = "btn-danger";
 
   async function sendOne() {
@@ -128,9 +141,11 @@ async function startSend() {
     if (r.remaining === 0) {
       clearInterval(sendTimer);
       sendTimer = null;
-      document.getElementById("btnStart").textContent = "▶️ Démarrer l'envoi";
+      document.getElementById("btnStart").textContent = "▶️ Démarrer";
       document.getElementById("btnStart").className = "btn-primary";
       alert("✅ Envoi terminé !");
+    } else {
+      document.getElementById("btnStart").textContent = "⏹️ Arrêter (" + r.remaining + " restants)";
     }
     refreshAll();
   }

@@ -144,10 +144,29 @@ app.post("/api/send-one", async (req, res) => {
   }
 });
 
-// Stats
-app.get("/api/stats", (req, res) => {
-  const totals = db.prepare("SELECT COALESCE(SUM(sent),0) as sent, COALESCE(SUM(opens),0) as opens, COALESCE(SUM(clicks),0) as clicks FROM stats").get();
-  res.json(totals);
+// Stats (local + Supabase tracking)
+app.get("/api/stats", async (req, res) => {
+  const totals = db.prepare("SELECT COALESCE(SUM(sent),0) as sent FROM stats").get();
+  let opens = 0, clicks = 0;
+
+  // Try Supabase for open/click tracking
+  const supa = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (supa && key) {
+    try {
+      const [o, c] = await Promise.all([
+        fetch(supa + "/rest/v1/tracking_events?select=id&event_type=eq.open", { headers: { apikey: key, Authorization: "Bearer " + key } }),
+        fetch(supa + "/rest/v1/tracking_events?select=id&event_type=eq.click", { headers: { apikey: key, Authorization: "Bearer " + key } }),
+      ]);
+      const oJson = await o.json(); const cJson = await c.json();
+      opens = (oJson || []).length; clicks = (cJson || []).length;
+      // Update local stats
+      db.prepare("UPDATE stats SET opens = ?, clicks = ?").run(opens, clicks);
+    } catch (e) {}
+  } else {
+    opens = totals.opens || 0; clicks = totals.clicks || 0;
+  }
+  res.json({ sent: totals.sent || 0, opens, clicks });
 });
 
 // Settings
