@@ -264,16 +264,27 @@ async function refreshAll() {
     '<div class="camp-card"><div><div class="item-name">' + c.name + '</div><div style="display:flex;gap:14px;font-size:13px;color:#5f6368;margin-top:4px"><span>📤 ' + (c.sent || 0) + '</span><span>👁 ' + (c.opens || 0) + '</span><span>🔗 ' + (c.clicks || 0) + '</span></div></div></div>'
   ).join("");
 
-  // Queue status
+  // Queue status + update button
   const q = await api("/api/queue");
   const div = document.getElementById("sendingStatus");
   const entries = Object.entries(q.queue || {});
-  if (!entries.length) { div.innerHTML = ""; return; }
-  div.innerHTML = entries.map(([cid, info]) =>
-    '<div class="sending-bar"><span><b>' + cid + '</b> · ' + info.items + ' en attente</span>' +
-    (sendTimer ? '<span style="color:#0d904f">● En cours</span>' : '<span style="color:#5f6368">○ En pause</span>') +
-    '</div>'
-  ).join("");
+  const btn = document.getElementById("btnStart");
+
+  if (!entries.length) {
+    div.innerHTML = "";
+    if (!sendTimer) { btn.textContent = "▶️ Démarrer"; btn.className = "btn-primary"; }
+  } else {
+    const activeEntries = entries.filter(([, info]) => info.items > 0);
+    if (activeEntries.length) {
+      div.innerHTML = activeEntries.map(([cid, info]) =>
+        '<div class="sending-bar"><span><b>' + cid + '</b> · ' + info.items + ' en attente</span>' +
+        (sendTimer ? '<span style="color:#0d904f">● En cours</span>' : '<span style="color:#5f6368">○ En pause</span>') +
+        '</div>'
+      ).join("");
+      if (!sendTimer) { btn.textContent = "▶️ Reprendre"; btn.className = "btn-success"; }
+      else { btn.textContent = "⏹️ Arrêter"; btn.className = "btn-danger"; }
+    }
+  }
 }
 
 // Editor
