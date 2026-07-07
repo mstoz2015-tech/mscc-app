@@ -278,8 +278,12 @@ async function refreshAll() {
     if (activeEntries.length) {
       div.innerHTML = activeEntries.map(([cid, info]) =>
         '<div class="sending-bar"><span><b>' + cid + '</b> · ' + info.items + ' en attente</span>' +
-        (sendTimer ? '<span style="color:#0d904f">● En cours</span>' : '<span style="color:#5f6368">○ En pause</span>') +
-        '</div>'
+        '<div style="display:flex;gap:6px;align-items:center">' +
+        (sendTimer ? '<span style="color:#0d904f;font-size:12px">● En cours</span>' : '<span style="color:#5f6368;font-size:12px">○ En pause</span>') +
+        (sendTimer
+          ? '<button class="btn-outline btn-sm" onclick="stopSend()">⏹️ Arrêter</button>'
+          : '<button class="btn-success btn-sm" onclick="resumeSend(\'' + cid + '\')">▶️ Reprendre</button>') +
+        '</div></div>'
       ).join("");
       if (!sendTimer) { btn.textContent = "▶️ Reprendre"; btn.className = "btn-success"; }
       else { btn.textContent = "⏹️ Arrêter"; btn.className = "btn-danger"; }
@@ -292,6 +296,20 @@ function execCmd(cmd) { document.execCommand(cmd, false, null); document.getElem
 function insertLink() { const url = prompt("URL:"); if (url) document.execCommand("createLink", false, url); }
 function execCmdModal(cmd) { document.execCommand(cmd, false, null); }
 window.execCmd = execCmd; window.insertLink = insertLink; window.execCmdModal = execCmdModal;
+
+// Global helpers for inline buttons in Stats tab
+async function resumeSend(cid) {
+  document.getElementById("sendCampaign").value = cid;
+  await startSend();
+}
+async function stopSend() {
+  if (sendTimer) { clearInterval(sendTimer); sendTimer = null; }
+  document.getElementById("btnStart").textContent = "▶️ Reprendre";
+  document.getElementById("btnStart").className = "btn-success";
+  refreshAll();
+}
+window.resumeSend = resumeSend;
+window.stopSend = stopSend;
 
 // Config
 async function loadConfig() {
