@@ -62,6 +62,13 @@ button{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-weigh
     <div class="stat-box"><div class="stat-num amber" id="stClicks">0</div><div class="stat-lbl">Clics</div></div>
   </div>
   <div id="campaignStatsList"></div>
+  <div id="campaignDetail" class="card hidden" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="font-size:14px;font-weight:500" id="detailTitle"></h3>
+      <button class="btn-outline btn-sm" onclick="document.getElementById('campaignDetail').classList.add('hidden')">✕</button>
+    </div>
+    <div id="detailContent" style="max-height:300px;overflow-y:auto;font-size:12px"></div>
+  </div>
   <div id="sendingStatus"></div>
 </div>
 

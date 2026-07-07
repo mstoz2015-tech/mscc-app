@@ -260,8 +260,12 @@ async function refreshAll() {
   document.getElementById("hdrClicks").textContent = stats.clicks || 0;
 
   const camps = await api("/api/campaigns");
-  document.getElementById("campaignStatsList").innerHTML = camps.filter(c => (c.sent || 0) > 0).map(c =>
-    '<div class="camp-card"><div><div class="item-name">' + c.name + '</div><div style="display:flex;gap:14px;font-size:13px;color:#5f6368;margin-top:4px"><span>📤 ' + (c.sent || 0) + '</span><span>👁 ' + (c.opens || 0) + '</span><span>🔗 ' + (c.clicks || 0) + '</span></div></div></div>'
+  document.getElementById("campaignStatsList").innerHTML = camps.map(c =>
+    '<div class="camp-card" onclick="showCampaignDetail(\''+c.id+'\',\''+c.name+'\')" style="cursor:pointer">'+
+    '<div><div class="item-name">'+c.name+'</div>'+
+    '<div style="display:flex;gap:14px;font-size:13px;color:#5f6368;margin-top:4px">'+
+    '<span>📤 '+(c.sent||0)+'</span><span>👁 '+(c.opens||0)+'</span><span>🔗 '+(c.clicks||0)+'</span>'+
+    '</div></div></div>'
   ).join("");
 
   // Queue status + update button
@@ -309,6 +313,33 @@ async function stopSend() {
 }
 window.resumeSend = resumeSend;
 window.stopSend = stopSend;
+
+async function showCampaignDetail(cid, name) {
+  document.getElementById("detailTitle").textContent = "📋 " + name;
+  document.getElementById("campaignDetail").classList.remove("hidden");
+
+  const items = await api("/api/queue/" + cid + "/detail");
+  const content = document.getElementById("detailContent");
+
+  if (!items || !items.length) {
+    content.innerHTML = '<p style="color:#5f6368">Aucun email dans cette campagne.</p>';
+    return;
+  }
+
+  const statusIcon = { sent: "✅", pending: "⏳", error: "❌" };
+  const statusColor = { sent: "#0d904f", pending: "#5f6368", error: "#d93025" };
+
+  content.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
+    '<tr style="text-align:left;color:#5f6368;font-size:11px"><th style="padding:6px 8px;border-bottom:1px solid #e8eaed">Destinataire</th><th style="padding:6px 8px;border-bottom:1px solid #e8eaed">Statut</th><th style="padding:6px 8px;border-bottom:1px solid #e8eaed">Date</th></tr>' +
+    items.map(i =>
+      '<tr style="font-size:12px">' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #f1f3f4">' + i.email_to + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #f1f3f4;color:' + (statusColor[i.status] || "#5f6368") + '">' + (statusIcon[i.status] || "?") + " " + i.status + '</td>' +
+      '<td style="padding:6px 8px;border-bottom:1px solid #f1f3f4;color:#5f6368;font-size:11px">' + (i.created_at ? new Date(i.created_at).toLocaleString("fr") : "") + '</td>' +
+      '</tr>'
+    ).join("") + '</table>';
+}
+window.showCampaignDetail = showCampaignDetail;
 
 // Config
 async function loadConfig() {

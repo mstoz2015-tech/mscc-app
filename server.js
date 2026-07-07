@@ -144,6 +144,12 @@ app.post("/api/send-one", async (req, res) => {
   }
 });
 
+// Queue detail (for campaign drill-down)
+app.get("/api/queue/:campaignId/detail", (req, res) => {
+  const items = db.prepare("SELECT id, email_to, subject, status, created_at FROM queue WHERE campaign_id = ? ORDER BY id DESC LIMIT 200").all(req.params.campaignId);
+  res.json(items);
+});
+
 // Stats (local + Supabase tracking)
 app.get("/api/stats", async (req, res) => {
   const totals = db.prepare("SELECT COALESCE(SUM(sent),0) as sent FROM stats").get();
