@@ -186,6 +186,64 @@ app.post("/api/settings", (req, res) => {
 });
 db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
 
+// Email verification (SMTP check without sending)
+const dns = require("dns").promises;
+const net = require("net");
+
+app.post("/api/verify-emails", async (req, res) => {
+const { emails } = req.body; // array of {id, email}
+if (!emails || !emails.length) return res.json({ results: [] });
+
+const results = [];
+for (const item of emails.slice(0, 50)) { // max 50 per batch
+  const domain = item.email.split("@")[1];
+  if (!domain) { results.push({ id: item.id, email: item.email, valid: false, reason: "invalid format" }); continue; }
+
+  try {
+    const mxRecords = await dns.resolveMx(domain);
+    if (!mxRecords.length) { results.push({ id: item.id, email: item.email, valid: false, reason: "no MX" }); continue; }
+    const mx = mxRecords.sort((a, b) => a.priority - b.priority)[0].exchange;
+
+    const valid = await new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(5000);
+      let response = "";
+
+      socket.connect(25, mx, () => {
+        socket.on("data", (data) => {
+          response += data.toString();
+          if (response.includes("220")) socket.write("HELO verify\r\n");
+          else if (response.includes("250") && response.includes("HELO")) socket.write("MAIL FROM:<verify@mscc.lu>\r\n");
+          else if (response.includes("250") && response.includes("MAIL")) {
+            socket.write("RCPT TO:<" + item.email + ">\r\n");
+          } else if (response.includes("RCPT")) {
+            const code = parseInt(response.substring(0, 3));
+            resolve(code === 250 || code === 251);
+            socket.write("QUIT\r\n");
+            socket.end();
+          }
+        });
+      });
+      socket.on("error", () => resolve(false));
+      socket.on("timeout", () => { resolve(false); socket.destroy(); });
+    });
+
+    results.push({ id: item.id, email: item.email, valid, reason: valid ? "ok" : "mailbox rejected" });
+  } catch (e) {
+    results.push({ id: item.id, email: item.email, valid: false, reason: "DNS error" });
+  }
+}
+
+// Mark invalid emails in queue
+for (const r of results) {
+  if (!r.valid && r.id) {
+    db.prepare("UPDATE queue SET status = 'invalid' WHERE id = ?").run(r.id);
+  }
+}
+
+res.json({ results });
+});
+
 // Serve index.html for SPA routing
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));

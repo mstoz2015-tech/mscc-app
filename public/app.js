@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnQueue").addEventListener("click", addToQueue);
   document.getElementById("btnStart").addEventListener("click", startSend);
   document.getElementById("btnClear").addEventListener("click", clearQueue);
+  document.getElementById("btnVerify").addEventListener("click", verifyEmails);
   document.getElementById("btnAddCampaign").addEventListener("click", () => openCampaignModal());
   document.getElementById("btnAddSender").addEventListener("click", () => openSenderModal());
   document.getElementById("btnModalClose").addEventListener("click", closeModal);
@@ -103,6 +104,35 @@ async function clearQueue() {
   const cid = document.getElementById("sendCampaign").value;
   if (!confirm("Vider ?")) return;
   await api("/api/queue/" + cid, { method: "DELETE" });
+  refreshAll();
+}
+
+async function verifyEmails() {
+  const cid = document.getElementById("sendCampaign").value;
+  if (!cid) return alert("Choisissez une campagne");
+  const btn = document.getElementById("btnVerify");
+  btn.textContent = "⏳ Vérification en cours...";
+  btn.disabled = true;
+
+  // Get all pending emails
+  const detail = await api("/api/queue/" + cid + "/detail");
+  const pending = (detail || []).filter(i => i.status === "pending");
+  if (!pending.length) { btn.textContent = "✅ Aucun email à vérifier"; btn.disabled = false; return; }
+
+  const res = await api("/api/verify-emails", {
+    method: "POST",
+    body: JSON.stringify({ emails: pending.map(i => ({ id: i.id, email: i.email_to })) })
+  });
+
+  const invalid = (res.results || []).filter(r => !r.valid);
+  btn.textContent = "🔍 Vérifier les emails en attente";
+  btn.disabled = false;
+
+  if (invalid.length) {
+    alert("❌ " + invalid.length + " emails invalides marqués.\n\n" + invalid.map(r => r.email + ": " + r.reason).join("\n"));
+  } else {
+    alert("✅ Tous les emails semblent valides ! (" + pending.length + " vérifiés)");
+  }
   refreshAll();
 }
 
