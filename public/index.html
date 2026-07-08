@@ -49,6 +49,7 @@ button{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-weigh
 </div>
 <div class="tabs">
   <button class="tab active" data-tab="stats">📊 Stats</button>
+  <button class="tab" data-tab="verify">🔍 Vérifier</button>
   <button class="tab" data-tab="send">✉️ Envoyer</button>
   <button class="tab" data-tab="campaigns">📋 Campagnes</button>
   <button class="tab" data-tab="senders">📧 Expéditeurs</button>
@@ -70,6 +71,20 @@ button{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-weigh
     <div id="detailContent" style="max-height:300px;overflow-y:auto;font-size:12px"></div>
   </div>
   <div id="sendingStatus"></div>
+</div>
+
+<div id="verify" class="content hidden">
+  <div class="card">
+    <p style="font-size:13px;color:#5f6368;margin-bottom:16px">Importez une liste d'emails pour vérifier s'ils existent, sans rien envoyer.</p>
+    <div class="file-upload" id="verifyCsvDrop"><div class="icon">📎</div><p>Glissez un CSV ou cliquez pour importer</p></div>
+    <input type="file" id="verifyCsvInput" accept=".csv" class="hidden">
+    <p style="font-size:12px;color:#5f6368;margin-bottom:12px;text-align:center">— ou —</p>
+    <textarea id="verifyPaste" rows="4" placeholder="Collez les emails ici (un par ligne)"></textarea>
+    <p id="verifyInfo" style="font-size:12px;color:#0d904f;margin-bottom:12px" class="hidden"></p>
+    <button class="btn-primary" id="btnStartVerify" style="margin-bottom:8px">🔍 Lancer la vérification</button>
+    <div id="verifyProgress" style="margin-bottom:12px;font-size:13px;color:#5f6368" class="hidden"></div>
+    <button class="btn-outline" id="btnExportVerify" style="width:100%" disabled>📥 Exporter le CSV (Bon / Pas bon)</button>
+  </div>
 </div>
 
 <div id="send" class="content hidden">

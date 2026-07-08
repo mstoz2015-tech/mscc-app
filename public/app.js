@@ -2,6 +2,7 @@
 const API = "";
 
 let csvData = [], csvColumns = [], csvFileName = "", sendTimer = null;
+let verifyResults = [];
 
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => switchTab(t.dataset.tab)));
@@ -34,6 +35,7 @@ function switchTab(n) {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === n));
   document.querySelectorAll(".content").forEach(c => c.classList.toggle("hidden", c.id !== n));
   if (n === "stats") refreshAll();
+  if (n === "verify") initVerify();
   if (n === "send") loadCampaignsForSend();
   if (n === "campaigns") refreshCampaigns();
   if (n === "senders") refreshSenders();
@@ -370,6 +372,71 @@ async function showCampaignDetail(cid, name) {
     ).join("") + '</table>';
 }
 window.showCampaignDetail = showCampaignDetail;
+
+// === Verify Tab ===
+function initVerify() {
+  const drop = document.getElementById("verifyCsvDrop"), inp = document.getElementById("verifyCsvInput");
+  drop.onclick = () => inp.click();
+  drop.ondragover = e => e.preventDefault();
+  drop.ondrop = e => { e.preventDefault(); handleVerifyFile(e.dataTransfer.files[0]); };
+  inp.onchange = e => { if (e.target.files[0]) handleVerifyFile(e.target.files[0]); };
+  document.getElementById("btnStartVerify").onclick = startVerify;
+  document.getElementById("btnExportVerify").onclick = exportVerify;
+}
+
+function handleVerifyFile(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    const emails = [];
+    const lines = e.target.result.split("\n");
+    const start = lines[0] && !lines[0].includes("@") ? 1 : 0;
+    for (let i = start; i < lines.length; i++) {
+      const match = lines[i].match(/([\w.+-]+@[\w-]+\.[\w.-]+)/);
+      if (match) emails.push(match[1].toLowerCase().trim());
+    }
+    const unique = [...new Set(emails)];
+    document.getElementById("verifyPaste").value = unique.join("\n");
+    document.getElementById("verifyInfo").classList.remove("hidden");
+    document.getElementById("verifyInfo").textContent = "📄 " + file.name + " · " + unique.length + " emails";
+  };
+  r.readAsText(file);
+}
+
+async function startVerify() {
+  const raw = document.getElementById("verifyPaste").value;
+  const emails = [...new Set(raw.split(/[\n,;\s]+/).map(e => e.trim()).filter(e => e.includes("@")))];
+
+  if (!emails.length) return alert("Aucun email");
+
+  const progress = document.getElementById("verifyProgress");
+  const btn = document.getElementById("btnStartVerify");
+  const expBtn = document.getElementById("btnExportVerify");
+
+  btn.textContent = "⏳ Vérification..."; btn.disabled = true;
+  progress.classList.remove("hidden");
+  verifyResults = [];
+
+  for (let i = 0; i < emails.length; i++) {
+    progress.textContent = (i + 1) + "/" + emails.length + " : " + emails[i];
+    const res = await api("/api/verify-emails", { method: "POST", body: JSON.stringify({ emails: [{ id: null, email: emails[i] }] }) });
+    verifyResults.push((res.results || [])[0] || { email: emails[i], valid: false, reason: "error" });
+  }
+
+  const ok = verifyResults.filter(r => r.valid).length;
+  const ko = verifyResults.filter(r => !r.valid).length;
+  btn.textContent = "🔍 Relancer"; btn.disabled = false;
+  progress.textContent = "✅ " + ok + " bons / ❌ " + ko + " invalides sur " + emails.length;
+  expBtn.disabled = false;
+  expBtn.textContent = "📥 Exporter CSV (" + ok + " bons, " + ko + " invalides)";
+}
+
+function exportVerify() {
+  if (!verifyResults.length) return;
+  const csv = "email,statut,raison\n" + verifyResults.map(r => r.email + "," + (r.valid ? "Bon" : "Pas bon") + "," + (r.reason || "")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "emails_verifies.csv"; a.click();
+}
 
 // Config
 async function loadConfig() {
