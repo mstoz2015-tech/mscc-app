@@ -186,9 +186,7 @@ app.post("/api/settings", (req, res) => {
 });
 db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
 
-// Email verification (DNS MX check — fast, no port 25 needed)
-const dns = require("dns").promises;
-
+// Email verification (DNS-over-HTTPS via Cloudflare — fiable, gratuit, illimité)
 app.post("/api/verify-emails", async (req, res) => {
   const { emails } = req.body;
   if (!emails || !emails.length) return res.json({ results: [] });
@@ -197,16 +195,18 @@ app.post("/api/verify-emails", async (req, res) => {
     const domain = item.email.split("@")[1];
     if (!domain) return { id: item.id, email: item.email, valid: false, reason: "format invalide" };
     try {
-      const mx = await Promise.race([
-        dns.resolveMx(domain),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000))
-      ]);
-      return { id: item.id, email: item.email, valid: mx && mx.length > 0, reason: mx && mx.length > 0 ? "MX trouvé" : "pas de MX" };
+      const resp = await fetch("https://cloudflare-dns.com/dns-query?name=" + encodeURIComponent(domain) + "&type=MX", {
+        headers: { "Accept": "application/dns-json" }
+      });
+      const data = await resp.json();
+      const hasMx = data.Answer && data.Answer.some(r => r.type === 15);
+      return { id: item.id, email: item.email, valid: hasMx, reason: hasMx ? "MX trouvé" : "pas de serveur mail" };
     } catch (e) {
-      return { id: item.id, email: item.email, valid: false, reason: "domaine introuvable" };
+      return { id: item.id, email: item.email, valid: false, reason: "erreur DNS" };
     }
   }));
 
+  // Mark invalid in queue
   for (const r of results) {
     if (!r.valid && r.id) db.prepare("UPDATE queue SET status = 'invalid' WHERE id = ?").run(r.id);
   }
