@@ -416,10 +416,11 @@ async function startVerify() {
   progress.classList.remove("hidden");
   verifyResults = [];
 
-  for (let i = 0; i < emails.length; i++) {
-    progress.textContent = (i + 1) + "/" + emails.length + " : " + emails[i];
-    const res = await api("/api/verify-emails", { method: "POST", body: JSON.stringify({ emails: [{ id: null, email: emails[i] }] }) });
-    verifyResults.push((res.results || [])[0] || { email: emails[i], valid: false, reason: "error" });
+  for (let i = 0; i < emails.length; i += 200) {
+    const batch = emails.slice(i, i + 200).map(e => ({ id: null, email: e }));
+    progress.textContent = "Vérification " + (i + 1) + "–" + Math.min(i + 200, emails.length) + "/" + emails.length;
+    const res = await api("/api/verify-emails", { method: "POST", body: JSON.stringify({ emails: batch }) });
+    verifyResults.push(...(res.results || []));
   }
 
   const ok = verifyResults.filter(r => r.valid).length;

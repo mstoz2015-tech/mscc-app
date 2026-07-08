@@ -193,18 +193,19 @@ app.post("/api/verify-emails", async (req, res) => {
   const { emails } = req.body;
   if (!emails || !emails.length) return res.json({ results: [] });
 
-  const results = [];
-  for (const item of emails.slice(0, 100)) {
+  const results = await Promise.all(emails.slice(0, 200).map(async (item) => {
     const domain = item.email.split("@")[1];
-    if (!domain) { results.push({ id: item.id, email: item.email, valid: false, reason: "format invalide" }); continue; }
+    if (!domain) return { id: item.id, email: item.email, valid: false, reason: "format invalide" };
     try {
-      const mxRecords = await dns.resolveMx(domain);
-      if (!mxRecords.length) { results.push({ id: item.id, email: item.email, valid: false, reason: "pas de serveur mail" }); continue; }
-      results.push({ id: item.id, email: item.email, valid: true, reason: "MX trouvé" });
+      const mx = await Promise.race([
+        dns.resolveMx(domain),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000))
+      ]);
+      return { id: item.id, email: item.email, valid: mx && mx.length > 0, reason: mx && mx.length > 0 ? "MX trouvé" : "pas de MX" };
     } catch (e) {
-      results.push({ id: item.id, email: item.email, valid: false, reason: "domaine introuvable" });
+      return { id: item.id, email: item.email, valid: false, reason: "domaine introuvable" };
     }
-  }
+  }));
 
   for (const r of results) {
     if (!r.valid && r.id) db.prepare("UPDATE queue SET status = 'invalid' WHERE id = ?").run(r.id);
