@@ -380,7 +380,8 @@ function initVerify() {
   drop.ondragover = e => e.preventDefault();
   drop.ondrop = e => { e.preventDefault(); handleVerifyFile(e.dataTransfer.files[0]); };
   inp.onchange = e => { if (e.target.files[0]) handleVerifyFile(e.target.files[0]); };
-  document.getElementById("btnStartVerify").onclick = startVerify;
+  document.getElementById("btnStartVerify").onclick = () => startVerify("dns");
+  document.getElementById("btnStartSmtpVerify").onclick = () => startVerify("smtp");
   document.getElementById("btnExportVerify").onclick = exportVerify;
 }
 
@@ -402,14 +403,14 @@ function handleVerifyFile(file) {
   r.readAsText(file);
 }
 
-async function startVerify() {
+async function startVerify(mode) {
   const raw = document.getElementById("verifyPaste").value;
   const emails = [...new Set(raw.split(/[\n,;\s]+/).map(e => e.trim()).filter(e => e.includes("@")))];
 
   if (!emails.length) return alert("Aucun email");
 
   const progress = document.getElementById("verifyProgress");
-  const btn = document.getElementById("btnStartVerify");
+  const btn = mode === "smtp" ? document.getElementById("btnStartSmtpVerify") : document.getElementById("btnStartVerify");
   const expBtn = document.getElementById("btnExportVerify");
 
   btn.textContent = "⏳ Vérification..."; btn.disabled = true;
@@ -419,7 +420,7 @@ async function startVerify() {
   for (let i = 0; i < emails.length; i += 200) {
     const batch = emails.slice(i, i + 200).map(e => ({ id: null, email: e }));
     progress.textContent = "Vérification " + (i + 1) + "–" + Math.min(i + 200, emails.length) + "/" + emails.length;
-    const res = await api("/api/verify-emails", { method: "POST", body: JSON.stringify({ emails: batch }) });
+    const res = await api("/api/verify-emails", { method: "POST", body: JSON.stringify({ emails: batch, mode }) });
     verifyResults.push(...(res.results || []));
   }
 

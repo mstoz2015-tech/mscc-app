@@ -186,27 +186,75 @@ app.post("/api/settings", (req, res) => {
 });
 db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
 
-// Email verification (DNS-over-HTTPS via Cloudflare — fiable, gratuit, illimité)
+// Email verification — DNS (fast) + optional SMTP (accurate)
+const net = require("net");
+
 app.post("/api/verify-emails", async (req, res) => {
-  const { emails } = req.body;
+  const { emails, mode } = req.body; // mode: "dns" (default) or "smtp"
   if (!emails || !emails.length) return res.json({ results: [] });
 
-  const results = await Promise.all(emails.slice(0, 200).map(async (item) => {
+  const useSmtp = mode === "smtp";
+
+  async function verifyOne(item) {
     const domain = item.email.split("@")[1];
     if (!domain) return { id: item.id, email: item.email, valid: false, reason: "format invalide" };
+
+    // DNS MX check
+    let mxHost = null;
     try {
       const resp = await fetch("https://cloudflare-dns.com/dns-query?name=" + encodeURIComponent(domain) + "&type=MX", {
         headers: { "Accept": "application/dns-json" }
       });
       const data = await resp.json();
-      const hasMx = data.Answer && data.Answer.some(r => r.type === 15);
-      return { id: item.id, email: item.email, valid: hasMx, reason: hasMx ? "MX trouvé" : "pas de serveur mail" };
+      if (!data.Answer || !data.Answer.some(r => r.type === 15)) {
+        return { id: item.id, email: item.email, valid: false, reason: "pas de serveur mail" };
+      }
+      // Get the MX host for potential SMTP check
+      const mxRecord = data.Answer.filter(r => r.type === 15).sort((a, b) => (a.preference || 99) - (b.preference || 99))[0];
+      mxHost = (mxRecord.data || "").replace(/\.$/, "");
     } catch (e) {
       return { id: item.id, email: item.email, valid: false, reason: "erreur DNS" };
     }
-  }));
 
-  // Mark invalid in queue
+    if (!useSmtp) return { id: item.id, email: item.email, valid: true, reason: "MX trouvé" };
+
+    // SMTP check (only if mode=smtp)
+    try {
+      const valid = await new Promise((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(5000);
+        let stage = 0, buffer = "";
+        socket.connect(25, mxHost, () => {
+          socket.on("data", (data) => {
+            buffer += data.toString();
+            const lines = buffer.split("\r\n");
+            for (const line of lines) {
+              const code = parseInt(line.substring(0, 3));
+              if (!code) continue;
+              if (stage === 0) { socket.write("HELO v.local\r\n"); stage = 1; break; }
+              if (stage === 1 && line.includes("250")) { socket.write("MAIL FROM:<v@mscc.lu>\r\n"); stage = 2; break; }
+              if (stage === 2 && line.includes("250")) { socket.write("RCPT TO:<" + item.email + ">\r\n"); stage = 3; break; }
+              if (stage === 3) {
+                socket.write("QUIT\r\n"); socket.end();
+                if (code === 250 || code === 251) resolve("Bon");
+                else if (code === 550 || code === 551 || code === 553) resolve("Pas bon");
+                else resolve("Incertain");
+                return;
+              }
+            }
+          });
+          socket.on("error", () => resolve("Incertain"));
+          socket.on("timeout", () => { resolve("Incertain"); socket.destroy(); });
+        });
+      });
+      return { id: item.id, email: item.email, valid: valid !== "Pas bon", reason: valid === "Bon" ? "SMTP vérifié" : valid === "Incertain" ? "SMTP incertain" : "boîte rejetée" };
+    } catch (e) {
+      return { id: item.id, email: item.email, valid: true, reason: "SMTP indisponible (MX OK)" };
+    }
+  }
+
+  const results = await Promise.all(emails.slice(0, 200).map(verifyOne));
+
   for (const r of results) {
     if (!r.valid && r.id) db.prepare("UPDATE queue SET status = 'invalid' WHERE id = ?").run(r.id);
   }

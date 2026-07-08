@@ -81,7 +81,8 @@ button{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-weigh
     <p style="font-size:12px;color:#5f6368;margin-bottom:12px;text-align:center">— ou —</p>
     <textarea id="verifyPaste" rows="4" placeholder="Collez les emails ici (un par ligne)"></textarea>
     <p id="verifyInfo" style="font-size:12px;color:#0d904f;margin-bottom:12px" class="hidden"></p>
-    <button class="btn-primary" id="btnStartVerify" style="margin-bottom:8px">🔍 Lancer la vérification</button>
+    <button class="btn-primary" id="btnStartVerify" style="margin-bottom:8px">🔍 Vérifier (DNS, rapide)</button>
+    <button class="btn-outline" id="btnStartSmtpVerify" style="margin-bottom:8px;width:100%">🔬 Vérification SMTP (plus lent, plus précis)</button>
     <div id="verifyProgress" style="margin-bottom:12px;font-size:13px;color:#5f6368" class="hidden"></div>
     <button class="btn-outline" id="btnExportVerify" style="width:100%" disabled>📥 Exporter le CSV (Bon / Pas bon)</button>
   </div>
