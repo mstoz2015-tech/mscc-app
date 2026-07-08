@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "MSCC Send — Desktop Email Sender",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
+  "scripts": { "start": "node server.js", "postinstall": "npm rebuild better-sqlite3" },
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "cors": "^2.8.5",
