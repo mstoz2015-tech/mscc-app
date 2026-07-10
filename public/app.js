@@ -13,9 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
   drop.addEventListener("dragover", e => e.preventDefault());
   drop.addEventListener("drop", e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
   inp.addEventListener("change", e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
-  document.getElementById("btnQueue").addEventListener("click", addToQueue);
   document.getElementById("btnStart").addEventListener("click", startSend);
-  document.getElementById("btnClear").addEventListener("click", clearQueue);
+  document.getElementById("btnClear").addEventListener("click", clearData);
   document.getElementById("btnVerify").addEventListener("click", verifyEmails);
   document.getElementById("btnAddCampaign").addEventListener("click", () => openCampaignModal());
   document.getElementById("btnAddSender").addEventListener("click", () => openSenderModal());
@@ -64,9 +63,23 @@ function handleFile(file) {
 function showCsvPreview() {
   const info = document.getElementById("csvInfo"), prev = document.getElementById("csvPreview"), rows = document.getElementById("csvRows");
   info.innerHTML = "📄 <b>" + csvFileName + "</b> · " + csvData.length + " contacts · " + csvColumns.join(", ");
-  info.classList.remove("hidden");
-  prev.classList.remove("hidden");
+  info.classList.remove("hidden"); prev.classList.remove("hidden");
   rows.innerHTML = "<tr style='font-weight:600'>" + csvColumns.map(c => "<td>" + c + "</td>").join("") + "</tr>" + csvData.slice(0, 5).map(r => "<tr>" + csvColumns.map(c => "<td>" + (r[c] || "") + "</td>").join("") + "</tr>").join("");
+  
+  // Also show send list preview
+  showSendList();
+}
+
+function showSendList() {
+  const panel = document.getElementById("sendListPreview");
+  const count = document.getElementById("sendListCount");
+  const items = document.getElementById("sendListItems");
+  if (!csvData.length) { panel.classList.add("hidden"); return; }
+  panel.classList.remove("hidden");
+  count.textContent = csvData.length + " emails prêts à être envoyés";
+  items.innerHTML = csvData.slice(0, 100).map(r => 
+    '<div style="padding:3px 0;border-bottom:1px solid #f1f3f4">' + (r.email || "") + '</div>'
+  ).join("") + (csvData.length > 100 ? '<div style="color:#5f6368;padding:4px 0">... et ' + (csvData.length - 100) + ' de plus</div>' : "");
 }
 
 function clearCsv() {
@@ -143,47 +156,54 @@ async function startSend(cidOverride) {
   const cid = cidOverride || document.getElementById("sendCampaign").value;
   if (!cid) return alert("Choisissez une campagne");
 
-  // Check if there are pending items for this campaign
-  const q = await api("/api/queue");
-  const pending = (q.queue && q.queue[cid]) ? q.queue[cid].items : 0;
+  // Use CSV data directly — send all at once via API
+  const subject = document.getElementById("subject").value;
+  const body = document.getElementById("editorBody").innerHTML;
+  if (!subject) return alert("Objet requis");
+  if (!csvData.length) return alert("Aucun email. Importez un CSV d'abord.");
 
-  if (sendTimer) {
-    // Stop
-    clearInterval(sendTimer); sendTimer = null;
-    document.getElementById("btnStart").textContent = pending > 0 ? "▶️ Reprendre" : "▶️ Démarrer";
-    document.getElementById("btnStart").className = "btn-primary";
-    refreshAll(); return;
-  }
+  if (sendTimer) { clearInterval(sendTimer); sendTimer = null; refreshAll(); return; }
 
-  if (pending === 0) return alert("Aucun email en attente. Ajoutez d'abord des emails à la file.");
+  // Build recipients from CSV
+  const recipients = csvData.map(r => {
+    let s = subject, b = body;
+    csvColumns.forEach(c => { s = s.replace(new RegExp("{"+c+"}","gi"), r[c]||""); b = b.replace(new RegExp("{"+c+"}","gi"), r[c]||""); });
+    return { to: r.email, subject: s, body: b };
+  });
 
+  // Add to queue via API
+  await api("/api/queue", { method: "POST", body: JSON.stringify({ campaign_id: cid, emails: recipients }) });
+  
   const settings = await api("/api/settings");
   const delay = (settings.delay || 80) * 1000;
-
   document.getElementById("btnStart").textContent = "⏹️ Arrêter";
   document.getElementById("btnStart").className = "btn-danger";
 
   async function sendOne() {
-    const m = new Date().getHours() * 60 + new Date().getMinutes();
-    const [sh, sm] = (settings.startTime || "08:00").split(":").map(Number);
-    const [eh, em] = (settings.endTime || "22:00").split(":").map(Number);
-    if (m < sh * 60 + sm || m > eh * 60 + em) return;
-
-    const r = await api("/api/send-one", { method: "POST", body: JSON.stringify({ campaign_id: cid }) });
+    const m = new Date().getHours()*60 + new Date().getMinutes();
+    const [sh,sm] = (settings.startTime||"08:00").split(":").map(Number);
+    const [eh,em] = (settings.endTime||"22:00").split(":").map(Number);
+    if (m < sh*60+sm || m > eh*60+em) return;
+    const r = await api("/api/send-one", { method:"POST", body:JSON.stringify({ campaign_id:cid }) });
     if (r.remaining === 0) {
-      clearInterval(sendTimer);
-      sendTimer = null;
-      document.getElementById("btnStart").textContent = "▶️ Démarrer";
+      clearInterval(sendTimer); sendTimer = null;
+      document.getElementById("btnStart").textContent = "▶️ Démarrer l'envoi";
       document.getElementById("btnStart").className = "btn-primary";
       alert("✅ Envoi terminé !");
+      clearCsv();
     } else {
-      document.getElementById("btnStart").textContent = "⏹️ Arrêter (" + r.remaining + " restants)";
+      document.getElementById("btnStart").textContent = "⏹️ Arrêter ("+r.remaining+" restants)";
     }
     refreshAll();
   }
-
   sendOne();
   sendTimer = setInterval(sendOne, delay);
+}
+
+function clearData() {
+  if (csvData.length && !confirm("Vider la liste ?")) return;
+  clearCsv();
+  refreshAll();
 }
 
 // Campaigns

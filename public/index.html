@@ -107,9 +107,15 @@ button{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-weigh
     </div>
     <div id="editorBody" class="editor-body" contenteditable="true" placeholder="Rédigez votre message..."></div>
     <div class="actions">
-      <button class="btn-success" id="btnQueue" style="flex:1">Ajouter à la file</button>
-      <button class="btn-primary" id="btnStart">Démarrer</button>
-      <button class="btn-danger" id="btnClear">Vider</button>
+      <button class="btn-primary" id="btnStart" style="flex:1">▶️ Démarrer l'envoi</button>
+      <button class="btn-danger" id="btnClear">🗑️ Vider</button>
+    </div>
+    <div id="sendListPreview" class="csv-preview hidden" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span id="sendListCount" style="font-weight:500;font-size:13px"></span>
+        <span style="font-size:11px;color:#5f6368">Ces emails seront envoyés</span>
+      </div>
+      <div id="sendListItems" style="max-height:200px;overflow-y:auto;font-size:12px"></div>
     </div>
     <button class="btn-outline" id="btnVerify" style="margin-top:8px;width:100%">🔍 Vérifier les emails en attente</button>
   </div>
