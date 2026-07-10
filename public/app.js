@@ -387,6 +387,14 @@ async function stopSend() {
 window.resumeSend = resumeSend;
 window.stopSend = stopSend;
 
+async function stopSendCampaign(cid) {
+  if (sendTimer) { clearInterval(sendTimer); sendTimer = null; }
+  document.getElementById("btnStart").textContent = "▶️ Démarrer l'envoi";
+  document.getElementById("btnStart").className = "btn-primary";
+  refreshAll();
+}
+window.stopSendCampaign = stopSendCampaign;
+
 async function showCampaignDetail(cid, name) {
   document.getElementById("detailTitle").textContent = "📋 " + name;
   document.getElementById("campaignDetail").classList.remove("hidden");
