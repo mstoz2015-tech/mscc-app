@@ -102,6 +102,8 @@ button{padding:12px 24px;border-radius:8px;border:none;cursor:pointer;font-weigh
       <button onclick="execCmd('bold')"><b>B</b></button><button onclick="execCmd('italic')"><i>I</i></button><button onclick="execCmd('underline')"><u>U</u></button>
       <span class="sep"></span><button onclick="execCmd('insertUnorderedList')">•</button><button onclick="execCmd('insertOrderedList')">1.</button>
       <span class="sep"></span><button onclick="insertLink()">🔗</button>
+      <button onclick="document.getElementById('imgInput').click()">🖼️</button>
+      <input type="file" id="imgInput" accept="image/*" class="hidden" onchange="insertImage(event)">
     </div>
     <div id="editorBody" class="editor-body" contenteditable="true" placeholder="Rédigez votre message..."></div>
     <div class="actions">

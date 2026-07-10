@@ -330,8 +330,18 @@ async function refreshAll() {
 // Editor
 function execCmd(cmd) { document.execCommand(cmd, false, null); document.getElementById("editorBody").focus(); }
 function insertLink() { const url = prompt("URL:"); if (url) document.execCommand("createLink", false, url); }
-function execCmdModal(cmd) { document.execCommand(cmd, false, null); }
-window.execCmd = execCmd; window.insertLink = insertLink; window.execCmdModal = execCmdModal;
+function insertImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    document.execCommand("insertImage", false, ev.target.result);
+    document.getElementById("editorBody").focus();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+}
+window.execCmd = execCmd; window.insertLink = insertLink; window.insertImage = insertImage; window.execCmdModal = execCmdModal;
 
 // Global helpers for inline buttons in Stats tab
 async function resumeSend(cid) {
