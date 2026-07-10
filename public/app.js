@@ -86,6 +86,7 @@ function clearCsv() {
   csvData = []; csvColumns = []; csvFileName = "";
   document.getElementById("csvInfo").classList.add("hidden");
   document.getElementById("csvPreview").classList.add("hidden");
+  document.getElementById("sendListPreview").classList.add("hidden");
   document.getElementById("csvInput").value = "";
 }
 
