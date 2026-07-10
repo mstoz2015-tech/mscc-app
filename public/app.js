@@ -313,16 +313,26 @@ async function refreshAll() {
   document.getElementById("hdrClicks").textContent = stats.clicks || 0;
 
   const camps = await api("/api/campaigns");
-  document.getElementById("campaignStatsList").innerHTML = camps.map(c =>
-    '<div class="camp-card" onclick="showCampaignDetail(\''+c.id+'\',\''+c.name+'\')" style="cursor:pointer">'+
-    '<div><div class="item-name">'+c.name+'</div>'+
-    '<div style="display:flex;gap:14px;font-size:13px;color:#5f6368;margin-top:4px">'+
-    '<span>📤 '+(c.sent||0)+'</span><span>👁 '+(c.opens||0)+'</span><span>🔗 '+(c.clicks||0)+'</span>'+
-    '</div></div></div>'
-  ).join("");
+  const q = await api("/api/queue");
+  document.getElementById("campaignStatsList").innerHTML = camps.map(c => {
+    const pending = (q.queue && q.queue[c.id]) ? q.queue[c.id].items : 0;
+    let btn = "";
+    if (pending > 0) {
+      if (sendTimer) {
+        btn = '<button class="btn-outline btn-sm" onclick="event.stopPropagation();stopSendCampaign(\''+c.id+'\')">⏸️ Pause</button>';
+      } else {
+        btn = '<button class="btn-success btn-sm" onclick="event.stopPropagation();resumeSend(\''+c.id+'\')">▶️</button>';
+      }
+    }
+    return '<div class="camp-card" onclick="showCampaignDetail(\''+c.id+'\',\''+c.name+'\')" style="cursor:pointer">'+
+      '<div style="flex:1"><div class="item-name">'+c.name+'</div>'+
+      '<div style="display:flex;gap:14px;font-size:13px;color:#5f6368;margin-top:4px">'+
+      '<span>📤 '+(c.sent||0)+'</span><span>👁 '+(c.opens||0)+'</span><span>🔗 '+(c.clicks||0)+'</span>'+
+      (pending > 0 ? '<span style="color:#d97706">⏳ '+pending+' en attente</span>' : '')+
+      '</div></div>'+btn+'</div>';
+  }).join("");
 
   // Queue status + update button
-  const q = await api("/api/queue");
   const div = document.getElementById("sendingStatus");
   const entries = Object.entries(q.queue || {});
   const btn = document.getElementById("btnStart");
