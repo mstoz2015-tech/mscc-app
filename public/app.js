@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   drop.addEventListener("dragover", e => e.preventDefault());
   drop.addEventListener("drop", e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
   inp.addEventListener("change", e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
-  document.getElementById("btnStart").addEventListener("click", startSend);
+  document.getElementById("btnStart").addEventListener("click", () => startSend());
   document.getElementById("btnClear").addEventListener("click", clearData);
   document.getElementById("btnVerify").addEventListener("click", verifyEmails);
   document.getElementById("btnAddCampaign").addEventListener("click", () => openCampaignModal());
@@ -154,9 +154,7 @@ async function verifyEmails() {
 
 // Send loop
 async function startSend(cidOverride) {
-  try {
   const cid = cidOverride || document.getElementById("sendCampaign").value;
-  console.log("startSend: cid=" + cid + ", csvData.length=" + csvData.length);
   if (!cid) return alert("Choisissez une campagne");
 
   if (sendTimer) { clearInterval(sendTimer); sendTimer = null; refreshAll(); return; }
@@ -204,7 +202,6 @@ async function startSend(cidOverride) {
   }
   sendOne();
   sendTimer = setInterval(sendOne, delay);
-  } catch(e) { console.error("startSend error:", e); alert("Erreur: " + e.message); }
 }
 
 function clearData() {
