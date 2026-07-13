@@ -174,7 +174,20 @@ async function startSend(cidOverride) {
     await api("/api/queue", { method: "POST", body: JSON.stringify({ campaign_id: cid, emails: recipients }) });
     clearCsv();
   } else {
-    // Resume: check if queue has items
+    // Resume: check if CSV data is loaded, add to queue first
+    if (csvData.length) {
+      const subject = document.getElementById("subject").value;
+      const body = document.getElementById("editorBody").innerHTML;
+      if (!subject) return alert("Objet requis");
+      const recipients = csvData.map(r => {
+        let s = subject, b = body;
+        csvColumns.forEach(c => { s = s.replace(new RegExp("{"+c+"}","gi"), r[c]||""); b = b.replace(new RegExp("{"+c+"}","gi"), r[c]||""); });
+        return { to: r.email, subject: s, body: b };
+      });
+      await api("/api/queue", { method: "POST", body: JSON.stringify({ campaign_id: cid, emails: recipients }) });
+      clearCsv();
+    }
+    // Now check queue
     const q = await api("/api/queue");
     if (!q.queue || !q.queue[cid] || !q.queue[cid].items) return alert("Aucun email en attente pour cette campagne.");
   }
