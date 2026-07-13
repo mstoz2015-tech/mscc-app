@@ -130,14 +130,21 @@ async function verifyEmails() {
   btn.textContent = "⏳ Vérification en cours...";
   btn.disabled = true;
 
-  // Get all pending emails
-  const detail = await api("/api/queue/" + cid + "/detail");
-  const pending = (detail || []).filter(i => i.status === "pending");
-  if (!pending.length) { btn.textContent = "✅ Aucun email à vérifier"; btn.disabled = false; return; }
+  // Collect emails: from CSV data AND from queue
+  let emails = [];
+  if (csvData.length) {
+    emails = csvData.map(r => ({ id: null, email: r.email }));
+  } else {
+    const detail = await api("/api/queue/" + cid + "/detail");
+    const pending = (detail || []).filter(i => i.status === "pending");
+    emails = pending.map(i => ({ id: i.id, email: i.email_to }));
+  }
+  
+  if (!emails.length) { btn.textContent = "🔍 Vérifier les emails en attente"; btn.disabled = false; return alert("Aucun email à vérifier. Importez un CSV d'abord."); }
 
   const res = await api("/api/verify-emails", {
     method: "POST",
-    body: JSON.stringify({ emails: pending.map(i => ({ id: i.id, email: i.email_to })) })
+    body: JSON.stringify({ emails: emails })
   });
 
   const invalid = (res.results || []).filter(r => !r.valid);
