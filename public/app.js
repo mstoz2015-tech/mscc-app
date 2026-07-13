@@ -159,13 +159,11 @@ async function startSend(cidOverride) {
 
   if (sendTimer) { clearInterval(sendTimer); sendTimer = null; refreshAll(); return; }
 
-  // If called from Send tab (no override), add CSV data to queue
-  if (!cidOverride) {
+  // If CSV loaded, add to queue
+  if (csvData.length) {
     const subject = document.getElementById("subject").value;
     const body = document.getElementById("editorBody").innerHTML;
     if (!subject) return alert("Objet requis");
-    if (!csvData.length) return alert("Aucun email. Importez un CSV d'abord.");
-
     const recipients = csvData.map(r => {
       let s = subject, b = body;
       csvColumns.forEach(c => { s = s.replace(new RegExp("{"+c+"}","gi"), r[c]||""); b = b.replace(new RegExp("{"+c+"}","gi"), r[c]||""); });
@@ -173,25 +171,13 @@ async function startSend(cidOverride) {
     });
     await api("/api/queue", { method: "POST", body: JSON.stringify({ campaign_id: cid, emails: recipients }) });
     clearCsv();
-  } else {
-    // Resume: check if CSV data is loaded, add to queue first
-    if (csvData.length) {
-      const subject = document.getElementById("subject").value;
-      const body = document.getElementById("editorBody").innerHTML;
-      if (!subject) return alert("Objet requis");
-      const recipients = csvData.map(r => {
-        let s = subject, b = body;
-        csvColumns.forEach(c => { s = s.replace(new RegExp("{"+c+"}","gi"), r[c]||""); b = b.replace(new RegExp("{"+c+"}","gi"), r[c]||""); });
-        return { to: r.email, subject: s, body: b };
-      });
-      await api("/api/queue", { method: "POST", body: JSON.stringify({ campaign_id: cid, emails: recipients }) });
-      clearCsv();
-    }
-    // Now check queue
-    const q = await api("/api/queue");
-    if (!q.queue || !q.queue[cid] || !q.queue[cid].items) return alert("Aucun email en attente pour cette campagne.");
   }
-  
+
+  // Check there are emails to send
+  const q = await api("/api/queue");
+  const pending = (q.queue && q.queue[cid]) ? q.queue[cid].items : 0;
+  if (!pending) return alert("Aucun email à envoyer. Importez un CSV d'abord.");
+
   const settings = await api("/api/settings");
   const delay = (settings.delay || 80) * 1000;
   document.getElementById("btnStart").textContent = "⏹️ Arrêter";
