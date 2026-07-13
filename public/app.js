@@ -157,23 +157,27 @@ async function startSend(cidOverride) {
   const cid = cidOverride || document.getElementById("sendCampaign").value;
   if (!cid) return alert("Choisissez une campagne");
 
-  // Use CSV data directly — send all at once via API
-  const subject = document.getElementById("subject").value;
-  const body = document.getElementById("editorBody").innerHTML;
-  if (!subject) return alert("Objet requis");
-  if (!csvData.length) return alert("Aucun email. Importez un CSV d'abord.");
-
   if (sendTimer) { clearInterval(sendTimer); sendTimer = null; refreshAll(); return; }
 
-  // Build recipients from CSV
-  const recipients = csvData.map(r => {
-    let s = subject, b = body;
-    csvColumns.forEach(c => { s = s.replace(new RegExp("{"+c+"}","gi"), r[c]||""); b = b.replace(new RegExp("{"+c+"}","gi"), r[c]||""); });
-    return { to: r.email, subject: s, body: b };
-  });
+  // If called from Send tab (no override), add CSV data to queue
+  if (!cidOverride) {
+    const subject = document.getElementById("subject").value;
+    const body = document.getElementById("editorBody").innerHTML;
+    if (!subject) return alert("Objet requis");
+    if (!csvData.length) return alert("Aucun email. Importez un CSV d'abord.");
 
-  // Add to queue via API
-  await api("/api/queue", { method: "POST", body: JSON.stringify({ campaign_id: cid, emails: recipients }) });
+    const recipients = csvData.map(r => {
+      let s = subject, b = body;
+      csvColumns.forEach(c => { s = s.replace(new RegExp("{"+c+"}","gi"), r[c]||""); b = b.replace(new RegExp("{"+c+"}","gi"), r[c]||""); });
+      return { to: r.email, subject: s, body: b };
+    });
+    await api("/api/queue", { method: "POST", body: JSON.stringify({ campaign_id: cid, emails: recipients }) });
+    clearCsv();
+  } else {
+    // Resume: check if queue has items
+    const q = await api("/api/queue");
+    if (!q.queue || !q.queue[cid] || !q.queue[cid].items) return alert("Aucun email en attente pour cette campagne.");
+  }
   
   const settings = await api("/api/settings");
   const delay = (settings.delay || 80) * 1000;
