@@ -154,7 +154,9 @@ async function verifyEmails() {
 
 // Send loop
 async function startSend(cidOverride) {
+  try {
   const cid = cidOverride || document.getElementById("sendCampaign").value;
+  console.log("startSend: cid=" + cid + ", csvData.length=" + csvData.length);
   if (!cid) return alert("Choisissez une campagne");
 
   if (sendTimer) { clearInterval(sendTimer); sendTimer = null; refreshAll(); return; }
@@ -202,6 +204,7 @@ async function startSend(cidOverride) {
   }
   sendOne();
   sendTimer = setInterval(sendOne, delay);
+  } catch(e) { console.error("startSend error:", e); alert("Erreur: " + e.message); }
 }
 
 function clearData() {
